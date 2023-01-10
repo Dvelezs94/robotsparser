@@ -4,6 +4,7 @@ import requests
 import gzip
 from urllib.parse import urlparse
 from typing import Union
+from time import sleep
 
 def get_url_file_extension(url) -> str:
     url_parts = urlparse(url)
@@ -19,11 +20,11 @@ class Robotparser:
         self.verbose = verbose
         self._fetched = False
 
-    def read(self, sitemap_crawl_limit=0):
+    def read(self, sitemap_crawl_limit=0, delay=0):
         if not self.site_maps:
             raise Exception(f"No sitemaps found on {self.robots_url}")
         self._fetch_sitemaps()
-        self._fetch_urls(limit=sitemap_crawl_limit)
+        self._fetch_urls(limit=sitemap_crawl_limit, delay=delay)
 
     def _fetch_sitemaps(self) -> None:
         """
@@ -52,7 +53,7 @@ class Robotparser:
         if self.verbose:
             print(f"Found {len(self.sitemap_entries)} sitemap entries")
 
-    def _fetch_urls(self, limit=0) -> None:
+    def _fetch_urls(self, limit: int = 0, delay: int = 0) -> None:
         """
         Reads and saves all urls found in the sitemap entries.
 
@@ -82,6 +83,7 @@ class Robotparser:
             urlTags = soup.find_all("url")
             for url in urlTags:
                 urls.append(url.findNext("loc").text)
+            sleep(delay)
         self.url_entries = urls
         if self.verbose:
             print(f"Found {len(self.url_entries)} urls")
