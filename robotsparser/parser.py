@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import requests
 import gzip
 from urllib.parse import urlparse
+from typing import Union
 
 def get_url_file_extension(url) -> str:
     url_parts = urlparse(url)
@@ -18,11 +19,11 @@ class Robotparser:
         self.verbose = verbose
         self._fetched = False
 
-    def read(self):
+    def read(self, sitemap_crawl_limit=0):
         if not self.site_maps:
             raise Exception(f"No sitemaps found on {self.robots_url}")
         self._fetch_sitemaps()
-        self._fetch_urls()
+        self._fetch_urls(limit=sitemap_crawl_limit)
 
     def _fetch_sitemaps(self) -> None:
         """
@@ -51,15 +52,22 @@ class Robotparser:
         if self.verbose:
             print(f"Found {len(self.sitemap_entries)} sitemap entries")
 
-    def _fetch_urls(self) -> None:
+    def _fetch_urls(self, limit=0) -> None:
         """
         Reads and saves all urls found in the sitemap entries.
+
+        arguments:
+        limit: Max number of sitemaps to crawl for URLs
         """
         urls = []
+        sitemaps_crawled = 0
         self._validate_fetch()
+        print(f"Limit is set to {limit} sitemaps to crawl") if self.verbose and limit else None
         for entry in self.sitemap_entries:
-            if self.verbose:
-                print(f"Processing {entry}")
+            if limit > 0 and sitemaps_crawled >= limit:
+                break
+            sitemaps_crawled += 1
+            print(f"Processing {entry}") if self.verbose else None
             extension = get_url_file_extension(entry)
             r = requests.get(entry, stream=True)
             if extension == "gzip" or extension == "gz" or extension == "zip":
@@ -78,7 +86,7 @@ class Robotparser:
         if self.verbose:
             print(f"Found {len(self.url_entries)} urls")
     
-    def get_sitemaps(self) -> list[str] | None:
+    def get_sitemaps(self) -> Union[list[str], None]:
         """
         Returns a list of all the sitemaps found
         """
