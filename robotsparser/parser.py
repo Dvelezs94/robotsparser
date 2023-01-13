@@ -10,8 +10,35 @@ def get_url_file_extension(url) -> str:
     url_parts = urlparse(url)
     return url_parts.path.split(".")[-1]
 
+def parse_urls_from_sitemap(sitemap_url: str, limit: int = 0, delay: int = 0, verbose = False) -> list[str]:
+        """
+        Reads and saves all urls found in the sitemap entries.
+
+        arguments:
+        limit: Max number of sitemaps to crawl for URLs
+        """
+        urls = []
+        extension = get_url_file_extension(sitemap_url)
+        r = requests.get(sitemap_url, stream=True)
+        if extension == "gzip" or extension == "gz" or extension == "zip":
+            if verbose:
+                print("Gziped entry found")
+            xml = gzip.decompress(r.content)
+            bsFeatures = "xml"
+        else:
+            xml = r.text
+            bsFeatures = "lxml"
+        soup = BeautifulSoup(xml, features=bsFeatures)
+        urlTags = soup.find_all("url")
+        for url in urlTags:
+            urls.append(url.findNext("loc").text)
+        sleep(delay)
+        if verbose:
+            print(f"Found {len(urls)} urls")
+        return urls
+
 class Robotparser:
-    def __init__(self, url: str, verbose : bool = False):
+    def __init__(self, url: str, verbose: bool = False):
         self.robots_url = url
         self.urobot = urllib.robotparser.RobotFileParser()
         self.urobot.set_url(self.robots_url)
@@ -19,12 +46,14 @@ class Robotparser:
         self.site_maps = self.urobot.site_maps()
         self.verbose = verbose
         self._fetched = False
+        self.url_entries = []
 
-    def read(self, sitemap_crawl_limit=0, delay=0):
+    def read(self, fetch_sitemap_urls = True, sitemap_url_crawl_limit=0, delay=0):
         if not self.site_maps:
             raise Exception(f"No sitemaps found on {self.robots_url}")
         self._fetch_sitemaps()
-        self._fetch_urls(limit=sitemap_crawl_limit, delay=delay)
+        if fetch_sitemap_urls:
+            self._fetch_urls(limit=sitemap_url_crawl_limit, delay=delay)
 
     def _fetch_sitemaps(self) -> None:
         """
@@ -69,21 +98,7 @@ class Robotparser:
                 break
             sitemaps_crawled += 1
             print(f"Processing {entry}") if self.verbose else None
-            extension = get_url_file_extension(entry)
-            r = requests.get(entry, stream=True)
-            if extension == "gzip" or extension == "gz" or extension == "zip":
-                if self.verbose:
-                    print("Gziped entry found")
-                xml = gzip.decompress(r.content)
-                bsFeatures = "xml"
-            else:
-                xml = r.text
-                bsFeatures = "lxml"
-            soup = BeautifulSoup(xml, features=bsFeatures)
-            urlTags = soup.find_all("url")
-            for url in urlTags:
-                urls.append(url.findNext("loc").text)
-            sleep(delay)
+            urls = parse_urls_from_sitemap(entry)
         self.url_entries = urls
         if self.verbose:
             print(f"Found {len(self.url_entries)} urls")
