@@ -41,7 +41,7 @@ def parse_urls_from_sitemap(sitemap_url: str, limit: int = 0, delay: int = 0, ve
             print(f"Found {len(urls)} urls")
         return urls
 
-def robotsparser_sitemap_factory(sitemaps_list: list[str]):
+def robotsparser_sitemap_factory(sitemaps_list: set[str]):
     """
     returns a Robotparser object with sitemaps_list as robot_sitemaps.
     This is useful for websites that dont have any robots.txt but do have sitemaps
