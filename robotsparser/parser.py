@@ -41,7 +41,7 @@ def parse_urls_from_sitemap(sitemap_url: str, limit: int = 0, delay: int = 0, ve
             print(f"Found {len(urls)} urls")
         return urls
 
-def robotsparser_sitemap_factory(sitemaps_list: set[str]):
+def robotsparser_sitemap_factory(sitemaps_list: set[str], verbose = False):
     """
     returns a Robotparser object with sitemaps_list as robot_sitemaps.
     This is useful for websites that dont have any robots.txt but do have sitemaps
@@ -51,7 +51,7 @@ def robotsparser_sitemap_factory(sitemaps_list: set[str]):
     rb = robotsparser.robotsparser_sitemap_factory(sitemaps_list)
     rb.read()
     """
-    rb = Robotparser(url=None)
+    rb = Robotparser(url=None, verbose=verbose)
     rb.robot_sitemaps = sitemaps_list
     return rb
 
@@ -163,7 +163,7 @@ class Robotparser:
         so we need to dig down deep until we dont find any other sitemap or sitemap index
         """
         # if an xml doc, it means it is either a sitemap or sitemap index
-        print(f"categorizing {sitemap_website}") if self.verbose else None
+        # print(f"categorizing {sitemap_website}") if self.verbose else None
         if self._url_is_xml(sitemap_website):
             r = requests.get(sitemap_website, stream=True)
             extension = get_url_file_extension(sitemap_website)
@@ -177,7 +177,7 @@ class Robotparser:
                 bsFeatures = "lxml"
             soup = BeautifulSoup(xml, features=bsFeatures)
             if self._is_sitemap_index(soup):
-                print(f"new sitemap index {sitemap_website}") if self.verbose else None
+                # print(f"new sitemap index {sitemap_website}") if self.verbose else None
                 self.sitemap_indexes.add(sitemap_website)
                 sitemapTags = soup.find_all("sitemap")
                 for sitemap in sitemapTags:
@@ -189,7 +189,7 @@ class Robotparser:
             # We are still missing that part to make sure the loc is an actual website,
             # and not a sitemap index
             elif self._is_sitemap_entry(soup):
-                print(f"setting {sitemap_website} as entry")
+                print(sitemap_website)
                 self.sitemap_entries.add(sitemap_website)
         return None
 
@@ -211,6 +211,7 @@ class Robotparser:
             urls = set(parse_urls_from_sitemap(entry))
             for url in urls:
                 self.url_entries.add(url)
+                print(url) if self.verbose else None
         if self.verbose:
             print(f"Found {len(self.url_entries)} urls")
     
