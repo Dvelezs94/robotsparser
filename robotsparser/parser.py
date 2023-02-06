@@ -97,9 +97,9 @@ class Robotparser:
     def read(self, fetch_sitemap_urls = True, sitemap_url_crawl_limit=0, delay=0):
         if not self.robot_sitemaps:
             raise Exception(f"No sitemaps found on {self.robots_url}")
+        self._fetched = True
         for sitemap in self.robot_sitemaps:
             self._categorize_sitemap(sitemap)
-        self._fetched = True
         if self.verbose:
             print(f"Found {len(self.sitemap_entries)} sitemap entries and {len(self.sitemap_indexes)} sitemap indexes")
         # save urls from sitemap entries if true
@@ -189,7 +189,6 @@ class Robotparser:
             # We are still missing that part to make sure the loc is an actual website,
             # and not a sitemap index
             elif self._is_sitemap_entry(soup):
-                print(sitemap_website)
                 self.sitemap_entries.add(sitemap_website)
         return None
 
