@@ -25,8 +25,6 @@ def parse_urls_from_sitemap(sitemap_url: str, limit: int = 0, delay: int = 0, ve
         extension = get_url_file_extension(sitemap_url)
         r = requests.get(sitemap_url, stream=True)
         if extension == "gzip" or extension == "gz" or extension == "zip":
-            if verbose:
-                print("Gziped entry found")
             xml = gzip.decompress(r.content)
             bsFeatures = "xml"
         else:
@@ -56,7 +54,7 @@ def robotsparser_sitemap_factory(sitemaps_list: set[str], verbose = False):
     return rb
 
 class Robotparser:
-    def __init__(self, url: Union[str, None], verbose: bool = False):
+    def __init__(self, url: Union[str, None], verbose: bool = False, sitemap_entries_file=None):
         self.robots_url = url
         
         # this gets all top level sitemaps using urobot
@@ -65,12 +63,15 @@ class Robotparser:
         self.robot_sitemaps = set()
         self.verbose = verbose
         self._fetched = False
+        self.sitemap_entries_file = sitemap_entries_file
         # we use sets to avoid duplication and keep order
         self.url_entries = set()
         self.sitemap_indexes = set()
         self.sitemap_entries = set()
-        if self.robots_url:
-            self.get_sitemaps_from_robots()
+        # create log file right at the instantiation
+        if self.sitemap_entries_file:
+            with open(self.sitemap_entries_file, "a") as entries_file:
+                entries_file.writelines("")
 
 
     def parse_robots_file(self, lines: list[str]):
@@ -95,10 +96,13 @@ class Robotparser:
         return None
             
     def read(self, fetch_sitemap_urls = True, sitemap_url_crawl_limit=0, delay=0):
+        self.get_sitemaps_from_robots()
         if not self.robot_sitemaps:
             raise Exception(f"No sitemaps found on {self.robots_url}")
         self._fetched = True
         for sitemap in self.robot_sitemaps:
+            # remove spaces
+            sitemap = sitemap.replace(" ", "")
             self._categorize_sitemap(sitemap)
         if self.verbose:
             print(f"Found {len(self.sitemap_entries)} sitemap entries and {len(self.sitemap_indexes)} sitemap indexes")
@@ -168,8 +172,6 @@ class Robotparser:
             r = requests.get(sitemap_website, stream=True)
             extension = get_url_file_extension(sitemap_website)
             if extension == "gzip" or extension == "gz" or extension == "zip":
-                if self.verbose:
-                    print("Gziped sitemap found")
                 xml = gzip.decompress(r.content)
                 bsFeatures = "xml"
             else:
@@ -177,19 +179,22 @@ class Robotparser:
                 bsFeatures = "lxml"
             soup = BeautifulSoup(xml, features=bsFeatures)
             if self._is_sitemap_index(soup):
-                # print(f"new sitemap index {sitemap_website}") if self.verbose else None
+                print(f"Index {sitemap_website}") if self.verbose else None
                 self.sitemap_indexes.add(sitemap_website)
                 sitemapTags = soup.find_all("sitemap")
                 for sitemap in sitemapTags:
                     new_url = sitemap.findNext("loc").text
-                    
                     # if its a sitemap index, then we rerun this function on the new url
-                    self._categorize_sitemap(sitemap.findNext("loc").text)
+                    self._categorize_sitemap(new_url)
             # sitemap entries could also work as sitemap indexes (some sites do that),
             # We are still missing that part to make sure the loc is an actual website,
             # and not a sitemap index
             elif self._is_sitemap_entry(soup):
+                print(f"Sitemap Entry {sitemap_website}") if self.verbose else None
                 self.sitemap_entries.add(sitemap_website)
+                if self.sitemap_entries_file:
+                    with open(self.sitemap_entries_file, "a") as entries_file:
+                        entries_file.writelines(sitemap_website + "\n")
         return None
 
     def _fetch_urls(self, limit: int = 0, delay: int = 0) -> None:

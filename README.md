@@ -27,3 +27,30 @@ rb.get_sitemap_indexes() # returns sitemap indexes
 rb.get_sitemaps() # returns sitemaps
 rb.get_urls() # returns a list of all urls
 ```
+
+## Multiprocessing usage (crawl in the background)
+
+Crawl in the background and output new entries to file
+
+This is useful for sites where sitemaps are heavily nested and take a long
+time to crawl
+
+```python
+from robotsparser.parser import Robotparser
+import multiprocessing as mp
+from time import sleep
+from sh import tail
+
+if __name__ == '__main__':
+    mp.freeze_support()
+    robots_url = "https://www.example.com/robots.txt"
+    entries_lof_file="./entries.log"
+    rb = Robotparser(url=robots_url, verbose=False, sitemap_entries_file=entries_lof_file)
+    sitemap_crawl_proc = mp.Process(target = rb.read, kwargs = {'fetch_sitemap_urls': False})
+    sitemap_crawl_proc.start()
+
+    for line in tail("-f", entries_lof_file, _iter=True):
+        print(line.replace("\n", ""))
+        if not sitemap_crawl_proc.is_alive():
+            break
+```
