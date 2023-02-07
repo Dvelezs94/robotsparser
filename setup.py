@@ -17,7 +17,7 @@ LONG_DESCRIPTION = 'Parse robots.txt files and find indexed urls'
 AUTHOR_NAME = "Diego Velez"
 AUTHOR_EMAIL = "diegovelezs94@gmail.com"
 PROJECT_URL = "https://github.com/Dvelezs94/robotsparser"
-REQUIRED_PACKAGES = ['bs4', 'requests', 'lxml'] # required 3rd party tools used by your package
+REQUIRED_PACKAGES = ['bs4', 'requests', 'lxml', 'sh'] # required 3rd party tools used by your package
 PROJECT_KEYWORDS = ['robots.txt', 'sitemap', 'crawler', 'data mining']
 # Read more about classifiers at
 # https://pypi.org/classifiers/
