@@ -49,7 +49,9 @@ if __name__ == '__main__':
     sitemap_crawl_proc.start()
 
     for line in tail("-f", entries_log_file, _iter=True):
-        print(line.replace("\n", ""))
+        # your logic goes here. each entry is line 1 sitemap
+        print(line.replace("\n", "")) # remove line break and print
+        # stop once crawl has finished
         if not sitemap_crawl_proc.is_alive():
             break
 ```
