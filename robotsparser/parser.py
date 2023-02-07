@@ -14,7 +14,7 @@ def get_url_file_extension(url) -> str:
     url_parts = urlparse(url)
     return url_parts.path.split(".")[-1]
 
-def parse_urls_from_sitemap(sitemap_url: str, limit: int = 0, delay: int = 0, verbose = False) -> set[str]:
+def parse_urls_from_sitemap(sitemap_url: str, limit: int = 0, delay: int = 0, verbose = False, request_headers={}) -> set[str]:
         """
         Reads and saves all urls found in the sitemap entries.
 
@@ -23,7 +23,7 @@ def parse_urls_from_sitemap(sitemap_url: str, limit: int = 0, delay: int = 0, ve
         """
         urls = set()
         extension = get_url_file_extension(sitemap_url)
-        r = requests.get(sitemap_url, stream=True)
+        r = requests.get(sitemap_url, stream=True, headers=request_headers)
         if extension == "gzip" or extension == "gz" or extension == "zip":
             xml = gzip.decompress(r.content)
             bsFeatures = "xml"
@@ -54,10 +54,12 @@ def robotsparser_sitemap_factory(sitemaps_list: set[str], verbose = False):
     return rb
 
 class Robotparser:
-    def __init__(self, url: Union[str, None], verbose: bool = False, sitemap_entries_file=None):
+    def __init__(self, url: Union[str, None], verbose: bool = False, sitemap_entries_file=None,
+                 request_headers = {}
+        ):
         self.robots_url = url
         
-        # this gets all top level sitemaps using urobot
+        # This gets all top level sitemaps using urobot
         # the problem with this is that it doesnt differenciate between a
         # sitemap and a sitemap index
         self.robot_sitemaps = set()
@@ -68,6 +70,7 @@ class Robotparser:
         self.url_entries = set()
         self.sitemap_indexes = set()
         self.sitemap_entries = set()
+        self.request_headers = request_headers
         # create log file right at the instantiation
         if self.sitemap_entries_file:
             with open(self.sitemap_entries_file, "a") as entries_file:
@@ -88,7 +91,7 @@ class Robotparser:
 
     def get_sitemaps_from_robots(self) -> None:
         print("getting robots")
-        r = requests.get(self.robots_url)
+        r = requests.get(self.robots_url, headers=self.request_headers)
         if r.status_code in range(200,299):
             self.parse_robots_file(r.text.splitlines())
         else:
@@ -169,7 +172,7 @@ class Robotparser:
         # if an xml doc, it means it is either a sitemap or sitemap index
         # print(f"categorizing {sitemap_website}") if self.verbose else None
         if self._url_is_xml(sitemap_website):
-            r = requests.get(sitemap_website, stream=True)
+            r = requests.get(sitemap_website, stream=True, headers=self.request_headers)
             extension = get_url_file_extension(sitemap_website)
             if extension == "gzip" or extension == "gz" or extension == "zip":
                 xml = gzip.decompress(r.content)
@@ -212,7 +215,7 @@ class Robotparser:
             if limit > 0 and sitemaps_crawled >= limit:
                 break
             sitemaps_crawled += 1
-            urls = set(parse_urls_from_sitemap(entry))
+            urls = set(parse_urls_from_sitemap(entry, request_headers=self.request_headers))
             for url in urls:
                 self.url_entries.add(url)
                 print(url) if self.verbose else None
