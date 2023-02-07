@@ -38,18 +38,17 @@ time to crawl
 ```python
 from robotsparser.parser import Robotparser
 import multiprocessing as mp
-from time import sleep
 from sh import tail
 
 if __name__ == '__main__':
     mp.freeze_support()
     robots_url = "https://www.example.com/robots.txt"
-    entries_lof_file="./entries.log"
-    rb = Robotparser(url=robots_url, verbose=False, sitemap_entries_file=entries_lof_file)
+    entries_log_file="./entries.log"
+    rb = Robotparser(url=robots_url, verbose=False, sitemap_entries_file=entries_log_file)
     sitemap_crawl_proc = mp.Process(target = rb.read, kwargs = {'fetch_sitemap_urls': False})
     sitemap_crawl_proc.start()
 
-    for line in tail("-f", entries_lof_file, _iter=True):
+    for line in tail("-f", entries_log_file, _iter=True):
         print(line.replace("\n", ""))
         if not sitemap_crawl_proc.is_alive():
             break
