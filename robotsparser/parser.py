@@ -1,9 +1,9 @@
 from bs4 import BeautifulSoup
-import requests
 import gzip
 from urllib.parse import urlparse
 from typing import Union
 from time import sleep
+import cloudscraper
 
 """
 Main parser script. This fetches and parses sitemap indexes to find all sitemaps 
@@ -14,7 +14,7 @@ def get_url_file_extension(url) -> str:
     url_parts = urlparse(url)
     return url_parts.path.split(".")[-1]
 
-def parse_urls_from_sitemap(sitemap_url: str, limit: int = 0, delay: int = 0, verbose = False, request_headers={}) -> set[str]:
+def parse_urls_from_sitemap(sitemap_url: str, limit: int = 0, delay: int = 0, verbose = False) -> set[str]:
         """
         Reads and saves all urls found in the sitemap entries.
 
@@ -22,8 +22,9 @@ def parse_urls_from_sitemap(sitemap_url: str, limit: int = 0, delay: int = 0, ve
         limit: Max number of sitemaps to crawl for URLs
         """
         urls = set()
+        scraper = cloudscraper.create_scraper() 
         extension = get_url_file_extension(sitemap_url)
-        r = requests.get(sitemap_url, stream=True, headers=request_headers)
+        r = scraper.get(sitemap_url, stream=True)
         if extension == "gzip" or extension == "gz" or extension == "zip":
             xml = gzip.decompress(r.content)
             bsFeatures = "xml"
@@ -54,9 +55,7 @@ def robotsparser_sitemap_factory(sitemaps_list: set[str], verbose = False):
     return rb
 
 class Robotparser:
-    def __init__(self, url: Union[str, None], verbose: bool = False, sitemap_entries_file=None,
-                 request_headers = {}
-        ):
+    def __init__(self, url: Union[str, None], verbose: bool = False, sitemap_entries_file=None):
         self.robots_url = url
         
         # This gets all top level sitemaps using urobot
@@ -70,11 +69,9 @@ class Robotparser:
         self.url_entries = set()
         self.sitemap_indexes = set()
         self.sitemap_entries = set()
-        self.request_headers = request_headers
-        # create log file right at the instantiation
-        if self.sitemap_entries_file:
-            with open(self.sitemap_entries_file, "a") as entries_file:
-                entries_file.writelines("")
+
+        self.scraper = cloudscraper.create_scraper()
+        self.crawling = False
 
 
     def parse_robots_file(self, lines: list[str]):
@@ -87,11 +84,11 @@ class Robotparser:
                 line = line.strip()
                 line = line.split(':', 1)
                 if line[0] == "sitemap":
-                    self.robot_sitemaps.add(line[1])
+                    self.robot_sitemaps.add(line[1].replace(" ", ""))
 
     def get_sitemaps_from_robots(self) -> None:
         print("getting robots")
-        r = requests.get(self.robots_url, headers=self.request_headers)
+        r = self.scraper.get(self.robots_url)
         if r.status_code in range(200,299):
             self.parse_robots_file(r.text.splitlines())
         else:
@@ -99,14 +96,16 @@ class Robotparser:
         return None
             
     def read(self, fetch_sitemap_urls = True, sitemap_url_crawl_limit=0, delay=0):
+        self.crawling = True
         self.get_sitemaps_from_robots()
         if not self.robot_sitemaps:
             raise Exception(f"No sitemaps found on {self.robots_url}")
         self._fetched = True
         for sitemap in self.robot_sitemaps:
             # remove spaces
-            sitemap = sitemap.replace(" ", "")
+            sitemap = sitemap
             self._categorize_sitemap(sitemap)
+        self.crawling = False
         if self.verbose:
             print(f"Found {len(self.sitemap_entries)} sitemap entries and {len(self.sitemap_indexes)} sitemap indexes")
         # save urls from sitemap entries if true
@@ -170,9 +169,12 @@ class Robotparser:
         so we need to dig down deep until we dont find any other sitemap or sitemap index
         """
         # if an xml doc, it means it is either a sitemap or sitemap index
-        # print(f"categorizing {sitemap_website}") if self.verbose else None
+        print(f"categorizing {sitemap_website}") if self.verbose else None
         if self._url_is_xml(sitemap_website):
-            r = requests.get(sitemap_website, stream=True, headers=self.request_headers)
+            r = self.scraper.get(sitemap_website)
+            if r.status_code not in range(200,299):
+                raise Exception(f"Something went wrong when fetching {sitemap_website}, got: {r.status_code}. {r.reason}\n{r.text}")
+            
             extension = get_url_file_extension(sitemap_website)
             if extension == "gzip" or extension == "gz" or extension == "zip":
                 xml = gzip.decompress(r.content)
@@ -209,16 +211,18 @@ class Robotparser:
         """
         self._validate_fetch()
         urls = set()
+        self.crawling = True
         sitemaps_crawled = 0
         print(f"Limit is set to {limit} sitemaps to crawl") if self.verbose and limit else None
         for entry in self.sitemap_entries:
             if limit > 0 and sitemaps_crawled >= limit:
                 break
             sitemaps_crawled += 1
-            urls = set(parse_urls_from_sitemap(entry, request_headers=self.request_headers))
+            urls = set(parse_urls_from_sitemap(entry))
             for url in urls:
                 self.url_entries.add(url)
                 print(url) if self.verbose else None
+        self.crawling = False
         if self.verbose:
             print(f"Found {len(self.url_entries)} urls")
     

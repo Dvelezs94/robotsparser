@@ -28,7 +28,7 @@ rb.get_sitemaps() # returns sitemaps
 rb.get_urls() # returns a list of all urls
 ```
 
-## Multiprocessing usage (crawl in the background)
+## Crawl in the background using thread
 
 Crawl in the background and output new entries to file
 
@@ -37,21 +37,17 @@ time to crawl
 
 ```python
 from robotsparser.parser import Robotparser
-import multiprocessing as mp
-from sh import tail
+import threading
 
 if __name__ == '__main__':
-    mp.freeze_support()
     robots_url = "https://www.example.com/robots.txt"
-    entries_log_file="./entries.log"
-    rb = Robotparser(url=robots_url, verbose=False, sitemap_entries_file=entries_log_file)
-    sitemap_crawl_proc = mp.Process(target = rb.read, kwargs = {'fetch_sitemap_urls': False})
+    rb = Robotparser(url=robots_url, verbose=False)
+
+    sitemap_crawl_proc = threading.Thread(target = rb.read, kwargs = {'fetch_sitemap_urls': False}, daemon=True)
     sitemap_crawl_proc.start()
 
-    for line in tail("-f", entries_log_file, _iter=True):
-        # your logic goes here. each entry is line 1 sitemap
-        print(line.replace("\n", "")) # remove line break and print
-        # stop once crawl has finished
-        if not sitemap_crawl_proc.is_alive():
-            break
+    while sitemap_crawl_proc.is_alive():
+        time.sleep(1)
+        print(f"entries_count: {len(rb.get_sitemap_entries())}, indexes: {len(rb.get_sitemap_indexes())}")
+        # any logic here to get object data
 ```
