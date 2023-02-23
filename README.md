@@ -30,10 +30,13 @@ rb.get_urls() # returns a list of all urls
 
 ## Crawl in the background using thread
 
-Crawl in the background and output new entries to file
+Crawl in the background
 
 This is useful for sites where sitemaps are heavily nested and take a long
 time to crawl
+
+While crawling you will be able to access the Robotparser class attributes to fetch
+sitemaps or entries
 
 ```python
 from robotsparser.parser import Robotparser
